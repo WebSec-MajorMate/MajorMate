@@ -37,7 +37,7 @@ export async function updateProfileAction(
   formData: FormData,
 ): Promise<ProfileActionState> {
   if (!isAuthConfigured()) {
-    return { message: "계정 서비스를 준비 중입니다. 잠시 후 다시 시도해 주세요." };
+    return { message: "계정 서비스를 준비 중입니다. 잠시 후 다시 시도해 주세요.", status: "error" };
   }
 
   // Server Actions can be invoked without rendering /my, so verify the session again here.
@@ -61,20 +61,21 @@ export async function updateProfileAction(
     const updatedProfile = await updateMyProfile(userId, parsed.data);
 
     if (!updatedProfile) {
-      return { message: "프로필을 찾을 수 없습니다. 다시 로그인해 주세요." };
+      return { message: "프로필을 찾을 수 없습니다. 다시 로그인해 주세요.", status: "error" };
     }
   } catch (error) {
     if (isDuplicateKeyError(error)) {
       return {
         fieldErrors: { nickname: ["이미 사용 중인 닉네임입니다."] },
         message: "닉네임을 확인해 주세요.",
+        status: "error",
       };
     }
 
     console.error("Failed to update profile", error);
-    return { message: "프로필 저장 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요." };
+    return { message: "프로필 저장 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.", status: "error" };
   }
 
   revalidatePath("/my");
-  return { message: "프로필이 저장되었습니다." };
+  return { message: "프로필이 저장되었습니다.", status: "success" };
 }

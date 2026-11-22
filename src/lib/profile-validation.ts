@@ -43,8 +43,9 @@ export type ProfileInput = z.infer<typeof profileSchema>;
 export type ProfileActionState = {
   fieldErrors?: Record<string, string[] | undefined>;
   message?: string;
+  status?: "success" | "error";
 };
 
 export function profileValidationState(error: z.ZodError): ProfileActionState {
-  return { fieldErrors: error.flatten().fieldErrors };
+  return { fieldErrors: error.flatten().fieldErrors, status: "error" };
 }
