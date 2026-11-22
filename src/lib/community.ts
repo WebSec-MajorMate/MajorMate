@@ -1,10 +1,10 @@
 import "server-only";
-import { isValidObjectId, type FilterQuery } from "mongoose";
+import { isValidObjectId } from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
 import { POST_CATEGORY_LABELS } from "@/lib/community-types";
 import type { PostCategory, ScrapTargetType } from "@/lib/community-types";
 import Comment from "@/models/Comment";
-import Post, { type PostRecord } from "@/models/Post";
+import Post from "@/models/Post";
 import Scrap from "@/models/Scrap";
 import Study from "@/models/Study";
 
@@ -39,6 +39,14 @@ export type ScrapSummary = {
   createdAt: Date;
 };
 
+type CommunityPostFilter = {
+  category?: PostCategory;
+  $or?: Array<{
+    title?: { $regex: string; $options: "i" };
+    content?: { $regex: string; $options: "i" };
+  }>;
+};
+
 function toPostSummary(post: Record<string, unknown>): PostSummary {
   return {
     id: String(post._id),
@@ -65,7 +73,7 @@ export async function getCommunityPosts(options: {
 }) {
   await connectToDatabase();
 
-  const filter: FilterQuery<PostRecord> = {};
+  const filter: CommunityPostFilter = {};
   if (options.category) filter.category = options.category;
 
   const query = options.query?.trim().slice(0, 100) ?? "";
@@ -155,7 +163,7 @@ export async function getMyScrapSummaries(userId: string): Promise<ScrapSummary[
   const postById = new Map(posts.map((post) => [String(post._id), post] as const));
   const studyById = new Map(studies.map((study) => [String(study._id), study] as const));
 
-  return scraps.flatMap((scrap) => {
+  return scraps.flatMap<ScrapSummary>((scrap) => {
     const id = String(scrap.targetId);
     const createdAt = scrap.createdAt;
     if (scrap.targetType === "POST") {
