@@ -16,8 +16,11 @@ export function SiteHeader({ user }: { user: SiteUser | null }) {
       <Link href="/" className="brand" aria-label="MajorMate 홈"><span className="brand-mark">M</span><span>MajorMate</span></Link>
       <nav className="nav" aria-label="주요 메뉴">
         <Link href="/" className="nav-link">홈</Link>
-        <Link href="/community" className="nav-link">커뮤니티</Link>
         <Link href="/studies" className="nav-link">스터디</Link>
+        <Link href="/community" className="nav-link">커뮤니티</Link>
+        <Link href="/activities" className="nav-link">대외활동/공모전</Link>
+        <Link href="/calendar" className="nav-link">캘린더</Link>
+        <Link href="/messages" className="nav-link">쪽지함</Link>
         <Link href="/my" className="nav-link">MY</Link>
       </nav>
       <div className="profile-area">
