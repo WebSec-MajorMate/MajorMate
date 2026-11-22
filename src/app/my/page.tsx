@@ -3,6 +3,7 @@ import { AuthSetupNotice } from "@/components/auth/AuthSetupNotice";
 import { ProfileDashboard } from "@/components/auth/ProfileDashboard";
 import { isAuthConfigured } from "@/lib/auth-config";
 import { getMyStudySummaries } from "@/lib/studies";
+import { getMyScrapSummaries } from "@/lib/community";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
@@ -24,7 +25,10 @@ export default async function MyPage() {
     redirect("/login?callbackUrl=/my");
   }
 
-  const studies = await getMyStudySummaries(session.user.id);
+  const [studies, scraps] = await Promise.all([
+    getMyStudySummaries(session.user.id),
+    getMyScrapSummaries(session.user.id),
+  ]);
 
-  return <ProfileDashboard user={session.user} studies={studies} />;
+  return <ProfileDashboard user={session.user} studies={studies} scraps={scraps} />;
 }
