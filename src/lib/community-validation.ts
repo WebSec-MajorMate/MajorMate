@@ -5,12 +5,12 @@ export const postCategorySchema = z.enum(POST_CATEGORIES);
 
 export const postInputSchema = z.object({
   category: postCategorySchema,
-  title: z.string().trim().min(2, "제목은 2자 이상 입력해 주세요.").max(100, "제목은 100자 이하로 입력해 주세요."),
-  content: z.string().trim().min(2, "내용은 2자 이상 입력해 주세요.").max(10000, "내용은 10,000자 이하로 입력해 주세요."),
+  title: z.string().trim().min(2, "제목은 2자 이상 입력해 주세요.").max(120, "제목은 120자 이하로 입력해 주세요."),
+  content: z.string().trim().min(5, "내용은 5자 이상 입력해 주세요.").max(10000, "내용은 10,000자 이하로 입력해 주세요."),
 });
 
 export const commentInputSchema = z.object({
-  content: z.string().trim().min(1, "댓글 내용을 입력해 주세요.").max(2000, "댓글은 2,000자 이하로 입력해 주세요."),
+  content: z.string().trim().min(1, "댓글 내용을 입력해 주세요.").max(1000, "댓글은 1,000자 이하로 입력해 주세요."),
 });
 
 export const communityFilterSchema = z.object({

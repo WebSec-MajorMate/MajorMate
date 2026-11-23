@@ -29,11 +29,11 @@ export function PostForm({
       {state.fieldErrors?.category?.[0] ? <small>{state.fieldErrors.category[0]}</small> : null}
     </label>
     <label className="auth-field">제목
-      <input name="title" maxLength={100} defaultValue={initialValues?.title} placeholder="제목을 입력해 주세요." required />
+      <input name="title" minLength={2} maxLength={120} defaultValue={initialValues?.title} placeholder="제목을 입력해 주세요." required />
       {state.fieldErrors?.title?.[0] ? <small>{state.fieldErrors.title[0]}</small> : null}
     </label>
     <label className="auth-field">내용
-      <textarea name="content" maxLength={10000} rows={12} defaultValue={initialValues?.content} placeholder="전공과 학교생활에 대한 이야기를 나눠 보세요." required />
+      <textarea name="content" minLength={5} maxLength={10000} rows={12} defaultValue={initialValues?.content} placeholder="전공과 학교생활에 대한 이야기를 나눠 보세요." required />
       {state.fieldErrors?.content?.[0] ? <small>{state.fieldErrors.content[0]}</small> : null}
     </label>
     <p className="form-notice">다른 사람을 존중하는 표현을 사용해 주세요. HTML 코드는 일반 텍스트로 표시됩니다.</p>

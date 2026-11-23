@@ -48,6 +48,26 @@ const UserSchema = new Schema(
       default: "USER",
       required: true,
     },
+    mannerScore: {
+      type: Number,
+      default: 36.5,
+      min: 0,
+      max: 100,
+    },
+    studyTags: {
+      type: [String],
+      default: [],
+    },
+    studyStyle: {
+      type: String,
+      enum: ["ONLINE", "OFFLINE", "HYBRID", "ANY"],
+      default: "ANY",
+    },
+    bio: {
+      type: String,
+      default: "",
+      maxlength: 200,
+    },
   },
   {
     timestamps: true,

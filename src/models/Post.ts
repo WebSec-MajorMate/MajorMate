@@ -5,9 +5,9 @@ const PostSchema = new Schema(
   {
     author: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     authorNickname: { type: String, required: true, trim: true, maxlength: 20 },
-    category: { type: String, enum: [...POST_CATEGORIES], required: true },
-    title: { type: String, required: true, trim: true, minlength: 2, maxlength: 100 },
-    content: { type: String, required: true, trim: true, minlength: 2, maxlength: 10000 },
+    category: { type: String, enum: [...POST_CATEGORIES], default: "FREE", required: true, index: true },
+    title: { type: String, required: true, trim: true, minlength: 2, maxlength: 120 },
+    content: { type: String, required: true, trim: true, minlength: 5, maxlength: 10000 },
     viewCount: { type: Number, default: 0, min: 0 },
     likeCount: { type: Number, default: 0, min: 0 },
     commentCount: { type: Number, default: 0, min: 0 },

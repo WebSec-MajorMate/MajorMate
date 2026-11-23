@@ -19,7 +19,7 @@ export function CommentForm({
 
   return <form action={formAction} className={`entry-form comment-form${isEdit ? " comment-form--edit" : ""}`} noValidate>
     <label className="auth-field">{isEdit ? "댓글 수정" : "댓글 작성"}
-      <textarea name="content" maxLength={2000} rows={isEdit ? 3 : 4} defaultValue={initialContent} placeholder="댓글을 입력해 주세요." required />
+      <textarea name="content" minLength={1} maxLength={1000} rows={isEdit ? 3 : 4} defaultValue={initialContent} placeholder="댓글을 입력해 주세요." required />
       {state.fieldErrors?.content?.[0] ? <small>{state.fieldErrors.content[0]}</small> : null}
     </label>
     {state.message ? <p className={`auth-message${state.success ? " auth-message--success" : ""}`} role={state.success ? "status" : "alert"}>{state.message}</p> : null}

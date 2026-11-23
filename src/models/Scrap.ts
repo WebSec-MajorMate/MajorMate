@@ -3,9 +3,9 @@ import { SCRAP_TARGET_TYPES } from "@/lib/community-types";
 
 const ScrapSchema = new Schema(
   {
-    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     targetType: { type: String, enum: [...SCRAP_TARGET_TYPES], required: true },
-    targetId: { type: Schema.Types.ObjectId, required: true },
+    targetId: { type: Schema.Types.ObjectId, required: true, index: true },
   },
   { timestamps: true, versionKey: false },
 );
