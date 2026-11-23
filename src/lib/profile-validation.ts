@@ -38,6 +38,13 @@ export const profileSchema = z.object({
   studyStyle: z.enum(["ONLINE", "OFFLINE", "HYBRID", "ANY"]),
 });
 
+export const profileSessionSchema = profileSchema.pick({
+  name: true,
+  nickname: true,
+  major: true,
+  grade: true,
+});
+
 export type ProfileInput = z.infer<typeof profileSchema>;
 
 export type ProfileActionState = {

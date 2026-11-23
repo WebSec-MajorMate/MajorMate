@@ -3,9 +3,10 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/lib/mongodb";
 import { loginSchema } from "@/lib/auth-validation";
+import { profileSessionSchema } from "@/lib/profile-validation";
 import User from "@/models/User";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   trustHost: true,
   session: {
     strategy: "jwt",
@@ -61,12 +62,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.nickname = user.nickname;
         token.major = user.major;
         token.grade = user.grade;
+      }
+
+      if (trigger === "update") {
+        // Session update payloads can be client-controlled in Auth.js, so validate them before changing the JWT.
+        const parsed = profileSessionSchema.safeParse(session?.user);
+
+        if (parsed.success) {
+          token.name = parsed.data.name;
+          token.nickname = parsed.data.nickname;
+          token.major = parsed.data.major;
+          token.grade = parsed.data.grade;
+        }
       }
 
       return token;
