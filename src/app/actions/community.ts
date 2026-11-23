@@ -162,7 +162,7 @@ export async function updateCommentAction(
     const comment = await Comment.findOneAndUpdate(
       { _id: commentId, author: userId },
       { $set: { content: parsed.data.content } },
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     ).select("post").lean();
     if (!comment) return { message: "댓글을 수정할 수 없습니다." };
     postId = String(comment.post);

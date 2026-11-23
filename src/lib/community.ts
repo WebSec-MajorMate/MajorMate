@@ -103,7 +103,7 @@ export async function getPostById(id: string, countView = true): Promise<PostDet
   if (!isValidObjectId(id)) return null;
   await connectToDatabase();
   const query = countView
-    ? Post.findByIdAndUpdate(id, { $inc: { viewCount: 1 } }, { new: true })
+    ? Post.findByIdAndUpdate(id, { $inc: { viewCount: 1 } }, { returnDocument: "after" })
     : Post.findById(id);
   const post = await query
     .select("author authorNickname category title content viewCount likeCount commentCount createdAt")
