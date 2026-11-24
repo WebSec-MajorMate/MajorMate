@@ -1,4 +1,5 @@
 import { InferSchemaType, Model, Schema, model, models } from "mongoose";
+import { DEFAULT_STUDY_CATEGORY, STUDY_CATEGORIES } from "@/lib/study-constants";
 
 const StudySchema = new Schema(
   {
@@ -10,6 +11,7 @@ const StudySchema = new Schema(
     },
     title: { type: String, required: true, trim: true, minlength: 3, maxlength: 100 },
     subject: { type: String, required: true, trim: true, maxlength: 60 },
+    category: { type: String, enum: STUDY_CATEGORIES, required: true, default: DEFAULT_STUDY_CATEGORY, index: true },
     description: { type: String, required: true, trim: true, minlength: 10, maxlength: 2000 },
     meetingDays: { type: [String], required: true, validate: [(days: string[]) => days.length > 0, "모임 요일을 선택해 주세요."] },
     meetingTime: { type: String, required: true, trim: true, maxlength: 60 },

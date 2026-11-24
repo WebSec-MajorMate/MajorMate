@@ -11,7 +11,7 @@ export function StudyCard({ study }: { study: StudySummary }) {
 
   return (
     <Link className="study-card" href={`/studies/${study.id}`}>
-      <div className="study-card-top"><span className="study-subject">{study.subject}</span><span className={`status status--${isRecruiting ? "good" : "closed"}`}>{isRecruiting ? "모집 중" : "모집 마감"}</span></div>
+      <div className="study-card-top"><span className="study-subject">{study.category} · {study.subject}</span><span className={`status status--${isRecruiting ? "good" : "closed"}`}>{isRecruiting ? "모집 중" : "모집 마감"}</span></div>
       <h2>{study.title}</h2>
       <p>{study.description}</p>
       <div className="study-info"><span>요일 · {study.meetingDays.join(" · ")}</span><span>시간 · {study.meetingTime}</span><span>{meetingTypeLabel(study.meetingType)} · 그룹장 {study.owner.nickname}</span></div>
