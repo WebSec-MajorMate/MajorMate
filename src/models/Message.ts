@@ -31,6 +31,7 @@ const MessageSchema = new Schema(
       default: false,
       index: true,
     },
+    clientMessageId: { type: String },
   },
   {
     timestamps: true,
@@ -39,6 +40,12 @@ const MessageSchema = new Schema(
 );
 
 MessageSchema.index({ room: 1, createdAt: 1 });
+MessageSchema.index({ room: 1, _id: -1 });
+MessageSchema.index({ receiver: 1, isRead: 1, room: 1 });
+MessageSchema.index({ room: 1, sender: 1, clientMessageId: 1 }, {
+  unique: true,
+  partialFilterExpression: { clientMessageId: { $type: "string" } },
+});
 
 export type MessageRecord = InferSchemaType<typeof MessageSchema>;
 

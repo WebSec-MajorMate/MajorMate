@@ -15,6 +15,7 @@ const MessageRoomSchema = new Schema(
       },
     },
     participantKey: { type: String, required: true },
+    readThrough: { type: Map, of: String, default: {} },
     study: {
       type: Schema.Types.ObjectId,
       ref: "Study",
