@@ -8,6 +8,18 @@ import User from "@/models/User";
 
 export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   trustHost: true,
+  // Cookies are shared across localhost ports; isolate this app's JWT session.
+  cookies: {
+    sessionToken: {
+      name: `${process.env.NODE_ENV === "production" ? "__Secure-" : ""}majormate.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 24 * 7,

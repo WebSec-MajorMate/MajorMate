@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { setServers } from "node:dns";
 
 type MongooseCache = {
   connection: typeof mongoose | null;
@@ -26,6 +27,11 @@ export async function connectToDatabase() {
   if (cache.connection) {
     return cache.connection;
   }
+
+  // Explicit local override for networks whose default resolver rejects SRV/TXT.
+  // Leave unset in production to keep the platform's DNS configuration.
+  const dnsServers = process.env.MONGODB_DNS_SERVERS?.split(",").map((server) => server.trim()).filter(Boolean);
+  if (!cache.promise && dnsServers?.length) setServers(dnsServers);
 
   cache.promise ??= mongoose.connect(uri, {
     bufferCommands: false,
