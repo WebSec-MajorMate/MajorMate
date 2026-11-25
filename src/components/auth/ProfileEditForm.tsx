@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { updateProfileAction } from "@/app/actions/profile";
 import type { ProfileSnapshot } from "@/lib/profile";
 import type { ProfileActionState } from "@/lib/profile-validation";
@@ -38,25 +38,26 @@ type ProfileEditFormProps = {
 };
 
 export function ProfileEditForm({ profile }: ProfileEditFormProps) {
-  const [state, formAction, isPending] = useActionState(updateProfileAction, initialState);
   const [isEditing, setIsEditing] = useState(false);
   const [tags, setTags] = useState(profile.studyTags);
   const [newTag, setNewTag] = useState("");
   const [tagMessage, setTagMessage] = useState("");
-  const profileTagKey = profile.studyTags.join("\u0001");
-  const profileTags = useMemo(() => profile.studyTags, [profileTagKey]);
-
-  useEffect(() => {
-    setTags(profileTags);
-  }, [profileTags]);
-
-  useEffect(() => {
-    if (state.status === "success") {
+  const [state, formAction, isPending] = useActionState(async (previousState: ProfileActionState, formData: FormData) => {
+    const result = await updateProfileAction(previousState, formData);
+    if (result.status === "success") {
       setIsEditing(false);
+    }
+    return result;
+  }, initialState);
+
+  function toggleEditing() {
+    if (!isEditing) {
+      setTags(profile.studyTags);
       setNewTag("");
       setTagMessage("");
     }
-  }, [state.status]);
+    setIsEditing(!isEditing);
+  }
 
   const selectableTags = useMemo(() => {
     const suggestedTagKeys = new Set(suggestedTags.map(tagKey));
@@ -118,7 +119,7 @@ export function ProfileEditForm({ profile }: ProfileEditFormProps) {
           <h2>프로필 수정</h2>
           <p>전공과 학습 성향을 최신 상태로 관리해 보세요.</p>
         </div>
-        <button className="button button--outline" onClick={() => setIsEditing((open) => !open)} type="button">
+        <button className="button button--outline" disabled={isPending} onClick={toggleEditing} type="button">
           {isEditing ? "닫기" : "수정하기"}
         </button>
       </div>
