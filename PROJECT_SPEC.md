@@ -168,13 +168,12 @@ src/app/
 
 1. **브랜치 전략**:
    * `main`: 프로덕션 배포용 안정 브랜치 (Vercel 자동 배포 연동 대상)
-   * `develop`: 팀원 작업 통합 및 테스트 브랜치 (기본 베이스 브랜치)
+   * `dev`: 팀원 작업 통합 및 테스트 브랜치 (기본 베이스 브랜치)
    * 기능별 브랜치: `feat/<역할>-<기능명>`
      * 예: `feat/pm-profile`, `feat/t1-study-tabs`, `feat/t2-posts`, `feat/t3-chat`, `feat/t4-activity-crawler`
 2. **작업 흐름**:
-   1. `git switch develop` && `git pull origin develop`
+   1. `git switch dev` && `git pull origin dev`
    2. `git switch -c feat/t1-study-tabs`
-   3. 기능 작업 후 `develop` 브랜치를 대상으로 GitHub Pull Request(PR) 생성
-   4. 팀원 리뷰와 승인 후 `develop`에 병합
-   5. 통합 테스트 후 `develop` -> `main` PR을 생성하고 리뷰·승인 후 병합
-3. 기존 `dev` 브랜치에서 `develop`으로의 전환 절차는 협업 규칙 문서의 **현재 `dev` 브랜치 전환** 항목을 따른다.
+   3. 기능 작업 후 `dev` 브랜치를 대상으로 GitHub Pull Request(PR) 생성
+   4. 팀원 리뷰와 승인 후 `dev`에 병합
+   5. 통합 테스트 후 `dev` -> `main` PR을 생성하고 리뷰·승인 후 병합
