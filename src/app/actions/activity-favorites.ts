@@ -4,16 +4,19 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { getActivities } from "@/lib/activities";
 import { removeActivityFavorite, saveActivityFavorite } from "@/lib/activity-favorites";
+import { activityFavoriteSchema } from "@/lib/activity-validation";
 import { isAuthConfigured } from "@/lib/auth-config";
 
-export async function setActivityFavorite(url: string, selected: boolean) {
+export async function setActivityFavorite(rawUrl: string, rawSelected: boolean) {
   const session = isAuthConfigured() ? await auth() : null;
   const userId = session?.user?.id;
   if (!userId) return "로그인이 필요합니다";
-  if (typeof url !== "string" || url.length > 3000 || typeof selected !== "boolean") {
+  const parsed = activityFavoriteSchema.safeParse({ url: rawUrl, selected: rawSelected });
+  if (!parsed.success) {
     return "공고를 확인할 수 없습니다.";
   }
 
+  const { url, selected } = parsed.data;
   try {
     if (selected) {
       const { activities } = await getActivities();

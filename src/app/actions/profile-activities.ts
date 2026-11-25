@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { profileActivityIdSchema, profileActivitySelectionSchema } from "@/lib/activity-validation";
 import { isAuthConfigured } from "@/lib/auth-config";
 import { deleteProfileActivity, getProfileActivity, profileActivityOptions, saveProfileActivity, updateProfileActivity } from "@/lib/profile-activities";
 
@@ -17,13 +18,17 @@ export async function addProfileActivity(_: { message: string }, form: FormData)
   const userId = session?.user?.id;
   if (!userId) return { message: "로그인이 필요합니다." };
 
-  const url = form.get("activity");
-  const editId = form.get("editId");
-  const file = form.get("evidence");
-  if (typeof url !== "string" || !url || url.length > 3000) return { message: "활동을 선택해 주세요." };
-  if (editId !== null && (typeof editId !== "string" || !/^[a-f0-9]{64}$/.test(editId))) {
-    return { message: "활동을 확인할 수 없습니다." };
+  const parsed = profileActivitySelectionSchema.safeParse({
+    url: form.get("activity"),
+    editId: form.get("editId"),
+  });
+  if (!parsed.success) {
+    return { message: parsed.error.issues[0]?.path[0] === "editId"
+      ? "활동을 확인할 수 없습니다."
+      : "활동을 선택해 주세요." };
   }
+  const { url, editId } = parsed.data;
+  const file = form.get("evidence");
   if (!(file instanceof File) || file.size === 0) return { message: "증빙 자료를 제출해 주세요." };
   if (file.size > 3 * 1024 * 1024) {
     return { message: "3MB 이하의 증빙 파일을 첨부해 주세요." };
@@ -33,12 +38,12 @@ export async function addProfileActivity(_: { message: string }, form: FormData)
   if (!type || file.type !== type) return { message: "PNG, JPG 또는 PDF 파일을 첨부해 주세요." };
 
   try {
-    const current = typeof editId === "string" ? await getProfileActivity(userId, editId) : null;
+    const current = editId ? await getProfileActivity(userId, editId) : null;
     if (editId && !current) return { message: "수정할 활동을 찾을 수 없습니다." };
     const activity = current?.url === url ? current
       : (await profileActivityOptions(userId)).find((entry) => entry.url === url);
     if (!activity) return { message: "선택한 활동을 확인할 수 없습니다. 목록을 새로고침해 주세요." };
-    if (typeof editId === "string") {
+    if (editId) {
       const updated = await updateProfileActivity(userId, editId, activity, bytes, type);
       if (!updated) return { message: "수정할 활동을 찾을 수 없습니다." };
     } else {
@@ -57,9 +62,10 @@ export async function addProfileActivity(_: { message: string }, form: FormData)
 export async function removeProfileActivity(id: string) {
   const session = isAuthConfigured() ? await auth() : null;
   if (!session?.user?.id) return "로그인이 필요합니다.";
-  if (typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id)) return "활동을 확인할 수 없습니다.";
+  const parsed = profileActivityIdSchema.safeParse(id);
+  if (!parsed.success) return "활동을 확인할 수 없습니다.";
   try {
-    await deleteProfileActivity(session.user.id, id);
+    await deleteProfileActivity(session.user.id, parsed.data);
   } catch {
     return "활동을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.";
   }
