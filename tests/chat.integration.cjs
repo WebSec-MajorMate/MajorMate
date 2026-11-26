@@ -48,7 +48,7 @@ async function main() {
     const request = (who, url, body, headers = {}) => fetch(base + url, { method: body === undefined ? "GET" : "POST", headers: { Cookie: cookies[who], Origin: base, ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
     const room = String(roomId);
     assert.equal((await fetch(base + "/api/messages")).status, 401);
-    for (const url of [`/api/messages?roomId=${room}`, `/api/messages/stream?roomId=${room}`, `/api/messages?roomId=${room}&after=${new mongoose.Types.ObjectId()}`]) assert.equal((await request(2, url)).status, 404);
+    for (const url of [`/api/messages?roomId=${room}`, `/api/messages/stream?roomId=${room}`, `/api/messages?roomId=${room}&after=0`]) assert.equal((await request(2, url)).status, 404);
     assert.equal((await request(0, "/api/messages", { roomId: room, content: "hello", clientMessageId: randomUUID() }, { Origin: "https://other.invalid" })).status, 403);
     const payload = { roomId: room, content: "첫 번째 실시간 메시지", clientMessageId: randomUUID() };
     const [send1, send2] = await Promise.all([request(0, "/api/messages", payload), request(0, "/api/messages", payload)]);
@@ -83,25 +83,26 @@ async function main() {
       }
     } finally { clearTimeout(timeout); controller.abort(); }
     assert.ok(observed, "new messages should arrive on the existing SSE connection");
-    assert.equal((await request(2, "/api/messages/read", { roomId: room, through: next.id })).status, 404);
-    assert.equal((await request(1, "/api/messages/read", { roomId: room, through: next.id })).status, 200);
+    assert.equal((await request(2, "/api/messages/read", { roomId: room, through: next.sequence })).status, 404);
+    assert.equal((await request(1, "/api/messages/read", { roomId: room, through: next.sequence })).status, 200);
     assert.equal((await (await request(1, "/api/messages")).json())[0].unreadCount, 0);
-    assert.equal((await (await request(0, `/api/messages?roomId=${room}`)).json()).readThrough, next.id);
+    assert.equal((await (await request(0, `/api/messages?roomId=${room}`)).json()).readThrough, next.sequence);
     // Older receipts must never move the read watermark backwards.
-    await request(1, "/api/messages/read", { roomId: room, through: first.id });
-    assert.equal((await (await request(0, `/api/messages?roomId=${room}`)).json()).readThrough, next.id);
-    const bulk = Array.from({ length: 125 }, (_, index) => ({ _id: new mongoose.Types.ObjectId(), room: roomId, sender: users[1]._id, receiver: users[0]._id, content: `이전 대화 검증 ${index + 1}`, isRead: false, createdAt: new Date(), updatedAt: new Date() }));
+    await request(1, "/api/messages/read", { roomId: room, through: first.sequence });
+    assert.equal((await (await request(0, `/api/messages?roomId=${room}`)).json()).readThrough, next.sequence);
+    const bulk = Array.from({ length: 125 }, (_, index) => ({ _id: new mongoose.Types.ObjectId(), sequence: next.sequence + index + 1, room: roomId, sender: users[1]._id, receiver: users[0]._id, content: `이전 대화 검증 ${index + 1}`, isRead: false, createdAt: new Date(), updatedAt: new Date() }));
     await db.collection("messages").insertMany(bulk);
+    await db.collection("messagerooms").updateOne({ _id: roomId }, { $set: { lastSequence: next.sequence + 125 } });
     const latest = await (await request(0, `/api/messages?roomId=${room}`)).json();
     assert.equal(latest.messages.length, 50);
     assert.ok(latest.olderCursor);
     const older = await (await request(0, `/api/messages?roomId=${room}&before=${latest.olderCursor}`)).json();
     assert.equal(older.messages.length, 50);
-    assert.ok(older.messages.at(-1).id < latest.messages[0].id);
-    const catchup = await (await request(0, `/api/messages?roomId=${room}&after=${next.id}`)).json();
+    assert.ok(older.messages.at(-1).sequence < latest.messages[0].sequence);
+    const catchup = await (await request(0, `/api/messages?roomId=${room}&after=${next.sequence}`)).json();
     assert.equal(catchup.messages.length, 100);
     assert.equal(catchup.hasMore, true);
-    const catchup2 = await (await request(0, `/api/messages?roomId=${room}&after=${catchup.messages.at(-1).id}`)).json();
+    const catchup2 = await (await request(0, `/api/messages?roomId=${room}&after=${catchup.messages.at(-1).sequence}`)).json();
     assert.equal(catchup2.messages.length, 25);
     assert.equal(catchup2.hasMore, false);
     const page = await request(0, `/messages/${room}`);
@@ -110,6 +111,7 @@ async function main() {
     assert.ok(html.includes("메시지 입력") && html.includes("이전 대화 검증 125"));
     assert.ok(html.includes("대화 목록") && html.includes(users[1].nickname));
     console.log("PASS: authentication, IDOR, CSRF, concurrent idempotency, SSE delivery, unread counts, monotonic receipts, history and >100-message recovery.");
+    await require("./chat-regressions.cjs")(db, users, request);
     if (process.argv.includes("--keep")) {
       fs.writeFileSync(fixturePath, JSON.stringify({ roomId: room, password, users: users.map((user) => ({ id: String(user._id), email: user.email, nickname: user.nickname })) }));
       keep = true;

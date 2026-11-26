@@ -25,7 +25,7 @@ const query = (data) => ({ lean: async () => data, select() { return this; }, so
 function harness({ member = true, existing = null, duplicate = false } = {}) {
   const calls = { writes: [], filters: [], connects: 0 };
   const room = { _id: roomId, participants: [user, other], readThrough: { [other]: messageId } };
-  const record = { _id: messageId, room: roomId, sender: user, content: "hello", clientMessageId, createdAt: new Date() };
+  const record = { _id: messageId, room: roomId, sender: user, content: "hello", clientMessageId, createdAt: new Date(), sequence: 2, isRead: false };
   let lookups = 0;
   const Message = {
     init: async () => {},
@@ -43,6 +43,7 @@ function harness({ member = true, existing = null, duplicate = false } = {}) {
   };
   const chat = load("src/lib/chat.ts", {
     "server-only": {}, "@/lib/mongodb": { connectToDatabase: async () => { calls.connects++; } },
+    "@/lib/chat-order": { prepareMessageOrder: async () => {}, appendOrderedMessage: async (sender, room, receiver, content, clientMessageId, session) => { const [message] = await Message.create([{ sender, room, receiver, content, clientMessageId }]); await Room.updateOne({ _id: room }, {}, { session }); return message; } },
     "@/lib/message-validation": validation, "@/models/Message": Message, "@/models/MessageRoom": Room,
     "@/models/User": { exists: async () => true, findById: () => query({ nickname: "상대" }) },
   });
@@ -60,8 +61,8 @@ test("chat validates UUID, scalar IDs, content and strict payloads", () => {
 test("outsider cannot send, read receipts, or recover messages", async () => {
   const { chat, calls } = harness({ member: false });
   await assert.rejects(chat.chatSend(user, { roomId, content: "hello", clientMessageId }), { status: 404 });
-  await assert.rejects(chat.chatRead(user, { roomId, through: messageId }), { status: 404 });
-  await assert.rejects(chat.chatSince(user, roomId, messageId), { status: 404 });
+  await assert.rejects(chat.chatRead(user, { roomId, through: 2 }), { status: 404 });
+  await assert.rejects(chat.chatSince(user, roomId, 0), { status: 404 });
   assert.ok(calls.filters.every((filter) => filter.participants === user));
   assert.equal(calls.writes.length, 0);
 });
@@ -90,19 +91,34 @@ test("send derives sender and receiver and commits preview in the same transacti
 
 test("read receipt is scoped to receiver and bounded by a real message", async () => {
   const { chat, calls } = harness();
-  await chat.chatRead(user, { roomId, through: messageId });
+  await chat.chatRead(user, { roomId, through: 2 });
   assert.equal(calls.writes[0].filter.receiver, user);
-  assert.equal(calls.writes[0].filter._id.$lte, messageId);
-  assert.equal(calls.writes[1].update.$max[`readThrough.${user}`], messageId);
+  assert.equal(calls.writes[0].filter.sequence.$lte, 2);
+  assert.equal(calls.writes[1].update.$max[`readSequences.${user}`], 2);
 });
 
 test("snapshot merging preserves older history and removes duplicates", () => {
   const { mergeChatMessages, isNearChatBottom } = load("src/lib/chat-client.ts");
-  const merged = mergeChatMessages([{ id: "01" }, { id: "02" }], [{ id: "03" }, { id: "02", content: "confirmed" }]);
+  const merged = mergeChatMessages([{ id: "01", sequence: 1 }, { id: "02", sequence: 2 }], [{ id: "03", sequence: 3 }, { id: "02", sequence: 2, content: "confirmed" }]);
   assert.equal(merged.map((entry) => entry.id).join(","), "01,02,03");
   assert.equal(merged[1].content, "confirmed");
   assert.equal(isNearChatBottom({ scrollHeight: 1000, clientHeight: 500, scrollTop: 490 }), true);
   assert.equal(isNearChatBottom({ scrollHeight: 1000, clientHeight: 500, scrollTop: 100 }), false);
+});
+
+test("send acknowledgement cannot mark an unseen incoming message read before recovery and DOM commit", () => {
+  const { observedReadBoundary, mergeChatMessages } = load("src/lib/chat-client.ts");
+  const seen = { id: "ffff", sequence: 1, mine: false };
+  const unseen = { id: "aaaa", sequence: 2, mine: false };
+  const acknowledgement = { id: "0000", sequence: 3, mine: true };
+  // SSE is delayed. My own acknowledgement renders before incoming sequence 2.
+  const acknowledged = mergeChatMessages([seen], [acknowledgement]);
+  assert.equal(observedReadBoundary(acknowledged, 1, 3), 1);
+  // Recovery advanced, but React has not committed the recovered message yet.
+  assert.equal(observedReadBoundary(acknowledged, 3, 3), 1);
+  const rendered = mergeChatMessages(acknowledged, [unseen]);
+  assert.equal(rendered.map((message) => message.sequence).join(","), "1,2,3");
+  assert.equal(observedReadBoundary(rendered, 3, 3), 2);
 });
 
 test("HTTP entry point rejects CSRF, malformed JSON and oversized bodies", async () => {

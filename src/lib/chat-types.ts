@@ -1,5 +1,7 @@
 export type ChatMessage = {
   id: string;
+  sequence: number;
+  isRead: boolean;
   clientMessageId?: string;
   content: string;
   mine: boolean;
@@ -17,8 +19,8 @@ export type ChatRoom = {
 export type ChatConversation = {
   nickname: string;
   canSend: boolean;
-  olderCursor: string | null;
-  readThrough: string | null;
+  olderCursor: number | null;
+  readThrough: number | null;
   messages: ChatMessage[];
 };
 

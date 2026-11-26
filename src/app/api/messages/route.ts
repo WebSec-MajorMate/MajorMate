@@ -8,8 +8,8 @@ export async function GET(request: Request) {
     const parsed = chatQuerySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
     if (!parsed.success) throw new ChatError(400, "잘못된 대화 요청입니다.");
     const { roomId, before, after } = parsed.data;
-    if ((before || after) && !roomId || before && after) throw new ChatError(400, "잘못된 대화 요청입니다.");
-    const data = roomId ? after ? await chatSince(userId, roomId, after) : await chatConversation(userId, roomId, before) : await chatRooms(userId);
+    if ((before !== undefined || after !== undefined) && !roomId || before !== undefined && after !== undefined) throw new ChatError(400, "잘못된 대화 요청입니다.");
+    const data = roomId ? after !== undefined ? await chatSince(userId, roomId, after) : await chatConversation(userId, roomId, before) : await chatRooms(userId);
     return Response.json(data, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) { return chatFailure(error); }
 }

@@ -39,6 +39,8 @@ function harness({ loggedIn = true, room = null, recipient = { _id: other } } = 
     find: () => { throw new Error("Unauthorized message query"); },
   };
   const mocks = {
+    "@/lib/chat-order": { prepareMessageOrder: async () => {}, appendOrderedMessage: async (sender, room, receiver, content, clientMessageId, session) => { const [message] = await messageModel.create([{ sender, room, receiver, content }], { session }); await roomModel.updateOne({ _id: room }, {}, { session }); return message; } },
+    "@/lib/chat": { chatConversation: async () => { throw new Error("Unexpected authorized query"); } },
     "server-only": {},
     "@/auth": { auth: async () => loggedIn ? { user: { id: me } } : null },
     "@/lib/mongodb": { connectToDatabase: async () => { calls.connects++; } },

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import type { ChatConversation, ChatFrame, ChatMessage } from "@/lib/chat-types";
-import { isNearChatBottom, mergeChatMessages } from "@/lib/chat-client";
+import { isNearChatBottom, mergeChatMessages, observedReadBoundary } from "@/lib/chat-client";
 import { StartConversationForm } from "./MessageForms";
 import styles from "@/app/messages/messages.module.css";
 
@@ -39,15 +39,15 @@ export function ChatInbox({ roomId, initial, failed, nickname, userId }: {
   const conversationRef = useRef(conversation);
   // A local send acknowledgement can jump past unseen messages; only a completed
   // server synchronization advances this cursor.
-  const syncedCursor = useRef(initial.conversation?.messages.at(-1)?.id ?? "000000000000000000000000");
-  const readThrough = useRef("");
+  const syncedCursor = useRef(initial.conversation?.messages.at(-1)?.sequence ?? 0);
+  const renderedMessages = useRef<ChatMessage[]>([]);
+  const readThrough = useRef(0);
   const sending = useRef(new Set<string>());
   const olderInFlight = useRef(false);
   const prepend = useRef<{ height: number; top: number } | null>(null);
   const active = useRef(true);
   const storageReady = useRef(false);
   const abortRequests = useRef<AbortController | null>(null);
-  const latest = conversation?.messages.at(-1)?.id;
   const draftKey = `majormate:dm-draft:${userId}:${roomId}`;
 
   useEffect(() => {
@@ -82,14 +82,14 @@ export function ChatInbox({ roomId, initial, failed, nickname, userId }: {
   }
 
   const markRead = useCallback(async (force = false) => {
-    const through = conversationRef.current?.messages.at(-1)?.id;
+    const through = observedReadBoundary(renderedMessages.current, syncedCursor.current, renderedMessages.current.at(-1)?.sequence ?? 0);
     if (!roomId || !through || !bottom.current || document.visibilityState !== "visible" || (!force && through <= readThrough.current)) return;
     readThrough.current = through;
     try {
       await jsonRequest("/api/messages/read", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomId, through }), signal: abortRequests.current?.signal });
       if (active.current) setRooms((previous) => previous.map((room) => room.id === roomId ? { ...room, unreadCount: 0 } : room));
-    } catch { if (readThrough.current === through) readThrough.current = ""; }
+    } catch { if (readThrough.current === through) readThrough.current = 0; }
   }, [roomId]);
 
   useEffect(() => {
@@ -106,16 +106,15 @@ export function ChatInbox({ roomId, initial, failed, nickname, userId }: {
         queue = queue.then(async () => {
           if (disposed) return;
           let incoming = frame.conversation;
-          // Recover all missed pages before merging the latest window. The overlap
-          // also captures recent messages whose transactions committed out of order.
+          // Recover all missed room sequences before advancing synchronization.
           if (roomId && incoming?.messages.length) {
             let cursor = syncedCursor.current;
-            const newest = incoming.messages.at(-1)!.id;
+            const newest = incoming.messages.at(-1)!.sequence;
             const recovered: ChatMessage[] = [];
             while (cursor < newest) {
               const batch = await jsonRequest<{ messages: ChatMessage[]; hasMore: boolean }>(`/api/messages?roomId=${roomId}&after=${cursor}`, { signal: controller.signal });
               recovered.push(...batch.messages);
-              const next = batch.messages.at(-1)?.id;
+              const next = batch.messages.at(-1)?.sequence;
               if (!batch.hasMore || !next || next <= cursor) break;
               cursor = next;
             }
@@ -124,7 +123,7 @@ export function ChatInbox({ roomId, initial, failed, nickname, userId }: {
           if (disposed) return;
           setRooms(frame.rooms);
           if (incoming) {
-            syncedCursor.current = incoming.messages.at(-1)?.id ?? syncedCursor.current;
+            syncedCursor.current = Math.max(syncedCursor.current, incoming.messages.at(-1)?.sequence ?? 0);
             const previous = conversationRef.current;
             const messages = mergeChatMessages(previous?.messages ?? [], incoming.messages);
             if (!bottom.current && messages.at(-1)?.id !== previous?.messages.at(-1)?.id) setHasNew(true);
@@ -136,7 +135,7 @@ export function ChatInbox({ roomId, initial, failed, nickname, userId }: {
           }
           setError("");
           setConnection("live");
-          void markRead(frame.rooms.some((room) => room.id === roomId && room.unreadCount > 0));
+          // Receipts run after React commits this snapshot to the DOM below.
         }).catch(() => { if (!disposed) { setConnection("offline"); setError("연결을 복구하고 있어요. 메시지는 다시 연결되면 동기화됩니다."); } });
       });
       source.addEventListener("unavailable", (event: MessageEvent) => {
@@ -164,15 +163,15 @@ export function ChatInbox({ roomId, initial, failed, nickname, userId }: {
   }, [roomId, markRead, retryConnection]);
 
   useLayoutEffect(() => {
+    renderedMessages.current = conversation?.messages ?? [];
     const element = scroll.current;
     if (!element) return;
     if (prepend.current) {
       element.scrollTop = prepend.current.top + element.scrollHeight - prepend.current.height;
       prepend.current = null;
     } else if (bottom.current) element.scrollTop = element.scrollHeight;
-  }, [conversation?.messages.length, pending.length]);
-
-  useEffect(() => { void markRead(); }, [latest, markRead]);
+    void markRead();
+  }, [conversation, pending.length, markRead]);
 
   async function loadOlder() {
     if (!roomId || olderInFlight.current || !conversationRef.current?.olderCursor) return;
@@ -216,7 +215,7 @@ export function ChatInbox({ roomId, initial, failed, nickname, userId }: {
     const content = draft.trim();
     if (!content || content.length > 2000 || !conversation?.canSend) return;
     const clientMessageId = crypto.randomUUID();
-    const message: PendingMessage = { id: clientMessageId, clientMessageId, content, mine: true, createdAt: new Date().toISOString(), status: "sending" };
+    const message: PendingMessage = { id: clientMessageId, sequence: 0, isRead: false, clientMessageId, content, mine: true, createdAt: new Date().toISOString(), status: "sending" };
     bottom.current = true;
     setHasNew(false);
     setPending((items) => [...items, message]);
@@ -279,7 +278,7 @@ export function ChatInbox({ roomId, initial, failed, nickname, userId }: {
                   {showDay && <div className={styles.day}>{day(message.createdAt)}</div>}
                   <div className={message.mine ? styles.mine : styles.theirs}>
                     <p className={styles.bubble}>{message.content}</p><div className={styles.messageMeta}><time dateTime={message.createdAt}>{time(message.createdAt)}</time>
-                      {message.mine && <span>{pendingMessage ? pendingMessage.status === "sending" ? "전송 중…" : "전송 실패" : conversation?.readThrough && message.id <= conversation.readThrough ? "읽음" : "전송됨"}</span>}</div>
+                      {message.mine && <span>{pendingMessage ? pendingMessage.status === "sending" ? "전송 중…" : "전송 실패" : message.isRead || (conversation?.readThrough && message.sequence <= conversation.readThrough) ? "읽음" : "전송됨"}</span>}</div>
                     {pendingMessage?.status === "failed" && <div className={styles.retry}><span>{pendingMessage.error}</span><button onClick={() => void deliver(pendingMessage)}>다시 보내기</button><button onClick={() => setPending((items) => items.filter((item) => item.id !== message.id))}>지우기</button></div>}
                   </div>
                 </li>;

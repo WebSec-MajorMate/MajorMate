@@ -16,6 +16,10 @@ const MessageRoomSchema = new Schema(
     },
     participantKey: { type: String, required: true },
     readThrough: { type: Map, of: String, default: {} },
+    readSequences: { type: Map, of: Number, default: {} },
+    orderVersion: { type: Number, default: 0 },
+    orderLock: { type: Number, default: 0 },
+    lastSequence: { type: Number, default: 0 },
     study: {
       type: Schema.Types.ObjectId,
       ref: "Study",

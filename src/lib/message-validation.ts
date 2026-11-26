@@ -13,12 +13,14 @@ export const chatSendSchema = sendMessageSchema.extend({
 }).strict();
 export const chatReadSchema = z.strictObject({
   roomId: messageIdSchema,
-  through: messageIdSchema,
+  through: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
 });
+const sequenceCursor = z.string().regex(/^(0|[1-9]\d*)$/).transform(Number)
+  .pipe(z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER));
 export const chatQuerySchema = z.strictObject({
   roomId: messageIdSchema.optional(),
-  before: messageIdSchema.optional(),
-  after: messageIdSchema.optional(),
+  before: sequenceCursor.optional(),
+  after: sequenceCursor.optional(),
 });
 export type MessageActionState = { error?: string; success?: boolean };
 
