@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import { messageIdSchema } from "@/lib/message-validation";
 import MessageRoom from "@/models/MessageRoom";
-import Message from "@/models/Message";
+import { chatConversation } from "@/lib/chat";
 import User from "@/models/User";
 
 export async function getMyMessageRooms() {
@@ -28,17 +28,8 @@ export async function getMyConversation(roomId: string, before?: string) {
   await connectToDatabase();
   const room = await MessageRoom.findOne({ _id: roomId, participants: session.user.id }).lean();
   if (!room) return null;
-  const otherId = room.participants.find((id) => String(id) !== session.user.id);
-  const other = otherId ? await User.findById(otherId).select("nickname").lean() : null;
-  const cursor = messageIdSchema.safeParse(before);
-  const messages = await Message.find({ room: roomId, ...(cursor.success ? { _id: { $lt: cursor.data } } : {}) })
-    .sort({ _id: -1 }).limit(51).lean();
-  const hasOlder = messages.length > 50;
-  const page = messages.slice(0, 50).reverse();
-  return {
-    nickname: other?.nickname ?? "탈퇴한 사용자",
-    canSend: !!other,
-    olderCursor: hasOlder ? String(page[0]._id) : null,
-    messages: page.map((message) => ({ id: String(message._id), content: message.content, mine: String(message.sender) === session.user.id, createdAt: message.createdAt })),
-  };
+  // Retained for older server callers; ordering is shared with the chat API.
+  const cursor = before === undefined ? undefined : Number(before);
+  if (cursor !== undefined && (!Number.isSafeInteger(cursor) || cursor < 0)) return null;
+  return chatConversation(session.user.id, roomId, cursor);
 }

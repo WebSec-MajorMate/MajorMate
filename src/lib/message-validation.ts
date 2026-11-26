@@ -8,6 +8,20 @@ export const sendMessageSchema = z.object({
   roomId: messageIdSchema,
   content: z.string().trim().min(1, "쪽지 내용을 입력해 주세요.").max(2000, "쪽지는 2000자까지 보낼 수 있습니다."),
 });
+export const chatSendSchema = sendMessageSchema.extend({
+  clientMessageId: z.uuid(),
+}).strict();
+export const chatReadSchema = z.strictObject({
+  roomId: messageIdSchema,
+  through: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+});
+const sequenceCursor = z.string().regex(/^(0|[1-9]\d*)$/).transform(Number)
+  .pipe(z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER));
+export const chatQuerySchema = z.strictObject({
+  roomId: messageIdSchema.optional(),
+  before: sequenceCursor.optional(),
+  after: sequenceCursor.optional(),
+});
 export type MessageActionState = { error?: string; success?: boolean };
 
 export function participantKey(ids: string[]) {

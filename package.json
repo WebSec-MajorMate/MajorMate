@@ -6,7 +6,9 @@
     "dev": "next dev --webpack --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:messages": "node --test tests/messages.test.cjs tests/chat.test.cjs",
+    "test:messages:integration": "node tests/chat-local.cjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -27,6 +29,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "mongodb-memory-server": "^11.4.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
