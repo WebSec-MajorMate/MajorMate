@@ -20,7 +20,7 @@ export default async function EditCommunityPostPage({ params }: EditPostPageProp
   const [session, post] = await Promise.all([auth(), getPostById(postId, false)]);
   if (!post) notFound();
   if (!session?.user?.id) redirect(`/login?callbackUrl=${encodeURIComponent(`/community/${postId}/edit`)}`);
-  if (session.user.id !== post.authorId) redirect(`/community/${postId}`);
+  if (!post.isMine) redirect(`/community/${postId}`);
 
   return <SiteFrame user={session.user}>
     <main className="page-wrap narrow-page">
@@ -30,7 +30,7 @@ export default async function EditCommunityPostPage({ params }: EditPostPageProp
         <h1 className="community-form-title">게시글 수정</h1>
         <PostForm
           action={updatePostAction.bind(null, post.id)}
-          initialValues={{ category: post.category, title: post.title, content: post.content }}
+          initialValues={{ category: post.category, title: post.title, content: post.content, tags: post.tags, attachmentIds: post.attachmentIds, isAnonymous: post.isAnonymous }}
           cancelHref={`/community/${post.id}`}
         />
       </section>

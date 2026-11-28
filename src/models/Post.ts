@@ -11,12 +11,21 @@ const PostSchema = new Schema(
     viewCount: { type: Number, default: 0, min: 0 },
     likeCount: { type: Number, default: 0, min: 0 },
     commentCount: { type: Number, default: 0, min: 0 },
+    interactionVersion: { type: Number, default: 0 },
+    isAnonymous: { type: Boolean, default: false },
+    tags: { type: [String], default: [] },
+    attachmentIds: { type: [Schema.Types.ObjectId], default: [] },
+    status: { type: String, enum: ["ACTIVE", "HIDDEN", "DELETED"], default: "ACTIVE", index: true },
+    isPinned: { type: Boolean, default: false },
+    acceptedCommentId: { type: Schema.Types.ObjectId, ref: "Comment", default: null },
   },
   { timestamps: true, versionKey: false },
 );
 
 PostSchema.index({ category: 1, createdAt: -1 });
 PostSchema.index({ createdAt: -1 });
+PostSchema.index({ status: 1, category: 1, createdAt: -1 });
+PostSchema.index({ author: 1, createdAt: -1 });
 
 export type PostRecord = InferSchemaType<typeof PostSchema>;
 
