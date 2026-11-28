@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { setServers } from "node:dns";
+import { setServers, promises as dnsPromises } from "node:dns";
 
 type MongooseCache = {
   connection: typeof mongoose | null;
@@ -31,7 +31,12 @@ export async function connectToDatabase() {
   // Explicit local override for networks whose default resolver rejects SRV/TXT.
   // Leave unset in production to keep the platform's DNS configuration.
   const dnsServers = process.env.MONGODB_DNS_SERVERS?.split(",").map((server) => server.trim()).filter(Boolean);
-  if (!cache.promise && dnsServers?.length) setServers(dnsServers);
+  if (!cache.promise && dnsServers?.length) {
+    setServers(dnsServers);
+    // The MongoDB driver uses the promise resolver, which Next can initialize
+    // before the callback resolver receives this explicit local override.
+    dnsPromises.setServers(dnsServers);
+  }
 
   cache.promise ??= mongoose.connect(uri, {
     bufferCommands: false,
